@@ -36,7 +36,7 @@ risk_profile:
 # =============================================================================
 trading_preferences:
   default_symbols:
-    - "NSE:NIFTY-INDEX"
+    - "NSE:NIFTY50-INDEX"
     - "NSE:NIFTYBANK-INDEX"
     - "NSE:RELIANCE-EQ"
     - "NSE:TCS-EQ"
