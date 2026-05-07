@@ -1059,28 +1059,39 @@ def metrics_cmd(
     console.print(f"[cyan]Loading {category} metrics for {period}...[/cyan]")
     
     try:
-        from core.metrics import Metrics
+        from core.metrics import MetricsCollector
+        from core.tracker import TradingTracker
+        from datetime import datetime, timedelta
         
-        metrics = Metrics()
+        tracker = TradingTracker()
+        metrics_collector = MetricsCollector(tracker)
+        
+        # Calculate time period
+        end_date = datetime.now()
+        days_map = {"7d": 7, "30d": 30, "90d": 90, "all": 365}
+        days = days_map.get(period, 30)
+        start_date = end_date - timedelta(days=days) if period != "all" else None
+        
+        metrics = metrics_collector.calculate_metrics(start_date=start_date, end_date=end_date)
         
         if category in ["all", "returns"]:
-            returns = metrics.get_return_metrics(period)
-            console.print("\n[bold]Return Metrics:[/bold]")
-            console.print(f"  Total Return: {returns.get('total', 0):.2f}%")
-            console.print(f"  Annualized: {returns.get('annualized', 0):.2f}%")
+            console.print("\n[bold cyan]Return Metrics[/bold cyan]")
+            console.print(f"  Net P&L: [green]₹{metrics.net_pnl:,.2f}[/green]" if metrics.net_pnl >= 0 else f"  Net P&L: [red]-₹{abs(metrics.net_pnl):,.2f}[/red]")
+            console.print(f"  Gross Profit: ₹{metrics.gross_profit:,.2f}")
+            console.print(f"  Gross Loss: ₹{metrics.gross_loss:,.2f}")
             
         if category in ["all", "risk"]:
-            risk = metrics.get_risk_metrics(period)
-            console.print("\n[bold]Risk Metrics:[/bold]")
-            console.print(f"  Sharpe Ratio: {risk.get('sharpe', 0):.2f}")
-            console.print(f"  Max Drawdown: {risk.get('max_dd', 0):.2f}%")
+            console.print("\n[bold cyan]Risk Metrics[/bold cyan]")
+            console.print(f"  Sharpe Ratio: {metrics.sharpe_ratio:.2f}")
+            console.print(f"  Profit Factor: {metrics.profit_factor:.2f}")
+            console.print(f"  Max Drawdown: ₹{metrics.max_drawdown:,.2f} ({metrics.max_drawdown_pct:.2f}%)")
             
         if category in ["all", "trades"]:
-            trades = metrics.get_trade_metrics(period)
-            console.print("\n[bold]Trade Metrics:[/bold]")
-            console.print(f"  Total Trades: {trades.get('count', 0)}")
-            console.print(f"  Win Rate: {trades.get('win_rate', 0):.1%}")
-            console.print(f"  Profit Factor: {trades.get('profit_factor', 0):.2f}")
+            console.print("\n[bold cyan]Trade Metrics[/bold cyan]")
+            console.print(f"  Total Trades: {metrics.total_trades}")
+            console.print(f"  Win Rate: {metrics.win_rate:.1f}%")
+            console.print(f"  Avg Trade P&L: ₹{metrics.avg_trade_pnl:,.2f}")
+            console.print(f"  Avg Duration: {metrics.avg_trade_duration:.1f} mins")
             
     except Exception as e:
         console.print(f"[red]Error loading metrics: {e}[/red]")
