@@ -1,6 +1,7 @@
 from strategies import StockScanner
 import sys
 import typer
+from datetime import datetime
 from rich.console import Console
 from rich.table import Table
 from rich import print as rprint
@@ -470,18 +471,18 @@ def start_bot_cmd(
             console.print("[red]Error: Could not load configuration. Check config/trading_profile.yml exists.[/red]")
             return
         
-        # Create PipelineConfig from dict
+        # Create PipelineConfig from dict (flattened YAML structure)
         pipeline_config = PipelineConfig(
             max_concurrent=config_dict.get('max_concurrent', 5),
             timeout_seconds=config_dict.get('timeout_seconds', 30.0),
             retry_attempts=config_dict.get('retry_attempts', 3),
-            enable_auto_trade=config_dict.get('auto_trading', {}).get('enabled', False),
-            require_confirmation=config_dict.get('auto_trading', {}).get('confirmation_required', True),
+            enable_auto_trade=config_dict.get('auto_trading_enabled', False),
+            require_confirmation=config_dict.get('confirmation_required', True),
             paper_trading=paper,
-            min_signal_score=config_dict.get('auto_trading', {}).get('min_signal_score', 75.0),
-            min_risk_reward=config_dict.get('risk_profile', {}).get('min_risk_reward_ratio', 1.5),
-            symbols=config_dict.get('trading_preferences', {}).get('default_symbols', []),
-            scan_interval=config_dict.get('trading_preferences', {}).get('scanning', {}).get('interval_seconds', 60)
+            min_signal_score=config_dict.get('min_signal_score', 75.0),
+            min_risk_reward=config_dict.get('min_risk_reward_ratio', 1.5),
+            symbols=config_dict.get('symbols', ["NSE:NIFTY50-INDEX", "NSE:BANKNIFTY-INDEX"]),
+            scan_interval=config_dict.get('scan_interval', 60)
         )
         
         # Get API client and tracker (use existing get_client function from this module)
@@ -506,6 +507,37 @@ def start_bot_cmd(
         if all(checks.values()):
             console.print("[green]All checks passed! Starting bot...[/green]")
             pipeline.start()
+            
+            # Continuous execution loop
+            import time
+            from utils import is_market_open
+            
+            symbols = pipeline_config.symbols
+            interval = pipeline_config.scan_interval
+            
+            console.print(f"[yellow]Press Ctrl+C to stop[/yellow]")
+            console.print(f"[dim]Monitoring {len(symbols)} symbols: {', '.join(symbols)}[/dim]")
+            console.print(f"[dim]Scan interval: {interval} seconds[/dim]")
+            
+            try:
+                while pipeline._running:
+                    if is_market_open():
+                        console.print(f"\n[bold cyan][{datetime.now().strftime('%H:%M:%S')}] Running trading cycle...[/bold cyan]")
+                        results = pipeline.execute_batch(symbols)
+                        
+                        # Show summary of results
+                        success_count = sum(1 for r in results if r.success)
+                        if success_count > 0:
+                            console.print(f"[green]✓ Cycle complete: {success_count}/{len(symbols)} successful[/green]")
+                        else:
+                            console.print(f"[yellow]⚠ Cycle complete: 0/{len(symbols)} successful[/yellow]")
+                    else:
+                        console.print(f"[dim][{datetime.now().strftime('%H:%M:%S')}] Market closed. Waiting...[/dim]")
+                    
+                    time.sleep(interval)
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Stopping bot gracefully...[/yellow]")
+                pipeline.stop()
         else:
             console.print("[red]Some checks failed. Fix issues before starting.[/red]")
             

@@ -127,6 +127,10 @@ def load_yaml_profile(profile_path: str = "config/trading_profile.yml") -> Dict[
             config['auto_trading_enabled'] = auto.get('enabled', False)
             config['paper_trading'] = auto.get('paper_trading', True)
             config['min_signal_score'] = auto.get('min_signal_score', 75.0)
+        
+        if 'scanning' in prefs:
+            scanning = prefs['scanning']
+            config['scan_interval'] = scanning.get('interval_seconds', 60)
     
     # API settings
     if 'api' in yaml_data and 'fyers' in yaml_data['api']:
