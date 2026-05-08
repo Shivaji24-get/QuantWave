@@ -10,6 +10,9 @@ logger = logging.getLogger(__name__)
 @dataclass
 class TradeConfig:
     """Configuration for trade execution."""
+    # Mode
+    paper_trading: bool = True           # Default to paper trading for safety
+
     # Score threshold for execution (0-100)
     score_threshold: int = 75
 
@@ -45,8 +48,9 @@ class TradeResult:
 class OrderExecutor:
     """Handles auto-order placement with risk management."""
 
-    def __init__(self, fyers_client, config: Optional[TradeConfig] = None):
+    def __init__(self, fyers_client, tracker=None, config: Optional[TradeConfig] = None):
         self.fyers_client = fyers_client
+        self.tracker = tracker
         self.config = config or TradeConfig()
         self.trades_today: int = 0
         self.active_positions: Dict[str, Dict] = {}
@@ -123,20 +127,13 @@ class OrderExecutor:
                       score: int, capital: float,
                       confirm: bool = True) -> TradeResult:
         """
-        Execute a trade with full risk management.
-
-        Args:
-            symbol: Stock symbol
-            signal: BUY or SELL
-            price: Current price
-            score: Signal score (0-100)
-            capital: Available capital
-            confirm: If True, log only and don't place order
-
-        Returns:
-            TradeResult with execution details
+        Execute a trade with full risk management and tracking.
         """
         from api import place_order, get_funds
+
+        # Log signal to tracker
+        if self.tracker:
+            self.tracker.add_signal(symbol, signal, score, price)
 
         # Check trading permission
         can_trade, reason = self.can_trade()
@@ -147,84 +144,90 @@ class OrderExecutor:
                 stop_loss=0, target=0, error=reason
             )
 
-        # Calculate position size
+        # Calculate position size and SL/Target
         qty = self.calculate_position_size(capital, price, score)
-
-        # Calculate SL and target
         stop_loss = self.calculate_stop_loss(price, signal)
         target = self.calculate_target(price, signal)
 
-        # Get available funds
-        try:
-            funds = get_funds(self.fyers_client)
-            available = funds.get("available_cash", 0)
-
-            required = qty * price
-            if required > available:
-                return TradeResult(
-                    success=False, order_id=None,
-                    symbol=symbol, side=signal, qty=qty, price=price,
-                    stop_loss=stop_loss, target=target,
-                    error=f"Insufficient funds. Required: ₹{required:.2f}, Available: ₹{available:.2f}"
-                )
-        except Exception as e:
-            logger.error(f"Error checking funds: {e}")
-
-        # If not auto-executing, just return planned trade
+        # Require confirmation unless auto_execute is on
         if confirm and not self.config.auto_execute:
             return TradeResult(
                 success=True, order_id="PENDING",
                 symbol=symbol, side=signal, qty=qty, price=price,
                 stop_loss=stop_loss, target=target,
-                error="Confirmation required - use --auto-execute to place order"
+                error="Confirmation required"
             )
 
-        # Place the order
-        try:
-            result = place_order(
-                self.fyers_client,
-                symbol=symbol,
-                qty=qty,
-                side=signal.lower(),
-                order_type="MARKET",
-                product_type="MIS"
-            )
+        order_id = f"PAPER-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        
+        # Live trading execution
+        if not self.config.paper_trading:
+            # Check funds for live only
+            try:
+                funds = get_funds(self.fyers_client)
+                available = funds.get("available_cash", 0)
+                if qty * price > available:
+                    return TradeResult(
+                        success=False, order_id=None, symbol=symbol, side=signal, qty=qty, 
+                        price=price, stop_loss=stop_loss, target=target, error="Insufficient funds"
+                    )
+            except: pass
 
-            if "error" in result:
+            try:
+                result = place_order(
+                    self.fyers_client,
+                    symbol=symbol,
+                    qty=qty,
+                    side=signal.lower(),
+                    order_type="MARKET",
+                    product_type="MIS"
+                )
+
+                if "error" in result:
+                    return TradeResult(
+                        success=False, order_id=None,
+                        symbol=symbol, side=signal, qty=qty, price=price,
+                        stop_loss=stop_loss, target=target,
+                        error=result["error"]
+                    )
+                order_id = result.get("order_id", "UNKNOWN")
+            except Exception as e:
                 return TradeResult(
                     success=False, order_id=None,
                     symbol=symbol, side=signal, qty=qty, price=price,
-                    stop_loss=stop_loss, target=target,
-                    error=result["error"]
+                    stop_loss=stop_loss, target=target, error=str(e)
                 )
 
-            # Track the trade
-            order_id = result.get("order_id", "UNKNOWN")
-            self.trades_today += 1
-            self.active_positions[symbol] = {
-                "order_id": order_id,
-                "side": signal,
-                "qty": qty,
-                "entry": price,
-                "stop_loss": stop_loss,
-                "target": target,
-                "timestamp": datetime.now()
-            }
-
-            return TradeResult(
-                success=True, order_id=order_id,
-                symbol=symbol, side=signal, qty=qty, price=price,
-                stop_loss=stop_loss, target=target
+        # Track the position
+        if self.tracker:
+            self.tracker.add_position(
+                symbol=symbol,
+                side=signal,
+                entry_price=price,
+                qty=qty,
+                order_id=order_id,
+                stop_loss=stop_loss,
+                take_profit=target,
+                strategy="SMC_3TIER",
+                paper=self.config.paper_trading
             )
 
-        except Exception as e:
-            logger.error(f"Order execution failed: {e}")
-            return TradeResult(
-                success=False, order_id=None,
-                symbol=symbol, side=signal, qty=qty, price=price,
-                stop_loss=stop_loss, target=target,
-                error=str(e)
-            )
+        self.trades_today += 1
+        self.active_positions[symbol] = {
+            "order_id": order_id,
+            "side": signal,
+            "qty": qty,
+            "entry": price,
+            "stop_loss": stop_loss,
+            "target": target,
+            "timestamp": datetime.now()
+        }
+
+        return TradeResult(
+            success=True, order_id=order_id,
+            symbol=symbol, side=signal, qty=qty, price=price,
+            stop_loss=stop_loss, target=target
+        )
 
     def close_position(self, symbol: str) -> bool:
         """Close an active position."""

@@ -21,6 +21,7 @@ class SMCResult:
     signal: str  # 'BUY', 'SELL', or 'NEUTRAL'
     score: int
     htf_aligned: bool
+    mtf_aligned: bool
     liquidity_sweep: bool
     mss_confirmed: bool
     fvg_present: bool
@@ -31,34 +32,33 @@ class SMCResult:
 
 class SmartMoneyStrategy:
     """
-    Smart Money Concepts Trading Strategy
+    Smart Money Concepts Trading Strategy (3-Tier MTF)
     
-    Entry Rules (ALL must be met):
-    1. HTF Bias aligned (Higher Time Frame trend)
-    2. Liquidity Sweep detected (PDH/PDL sweep)
-    3. Market Structure Shift (MSS/CHoCH) confirmed
-    4. Fair Value Gap (FVG) present
-    5. Optional: Order Block (OB) present
+    1. HTF (1H): Trend Bias
+    2. MTF (15M): Setup Validation (Liquidity, FVG, OB)
+    3. LTF (5M): Entry Execution (MSS, CHoCH)
     
     Scoring System:
-    - HTF Alignment: 30%
+    - HTF Alignment: 25%
+    - MTF Validation: 25%
     - Liquidity Sweep: 20%
-    - MSS: 20%
-    - FVG: 20%
+    - MSS (LTF): 20%
     - Volume Spike: 10%
-    
-    Only trade if score >= 75%
     """
     
     # Scoring weights
-    WEIGHT_HTF = 30
+    WEIGHT_HTF = 25
+    WEIGHT_MTF = 25
     WEIGHT_LIQUIDITY = 20
     WEIGHT_MSS = 20
-    WEIGHT_FVG = 20
     WEIGHT_VOLUME = 10
     
     # Minimum score threshold
     MIN_SCORE = 75
+
+    # Bonus weights (contextual)
+    WEIGHT_FVG = 10
+    WEIGHT_OB = 5
     
     def __init__(self):
         """Initialize SMC strategy components"""
@@ -67,13 +67,14 @@ class SmartMoneyStrategy:
         self.ob_detector = OrderBlockDetector()
         self.mss_detector = MSSDetector()
         
-    def analyze(self, ltf_df: pd.DataFrame, htf_df: Optional[pd.DataFrame] = None) -> SMCResult:
+    def analyze(self, ltf_df: pd.DataFrame, mtf_df: Optional[pd.DataFrame] = None, htf_df: Optional[pd.DataFrame] = None) -> SMCResult:
         """
-        Perform full SMC analysis on a symbol.
+        Perform 3-tier SMC analysis on a symbol.
         
         Args:
-            ltf_df: Lower Time Frame DataFrame (e.g., 5m)
-            htf_df: Higher Time Frame DataFrame (e.g., 15m or 1h). If None, uses LTF only.
+            ltf_df: Lower Time Frame DataFrame (e.g., 5m) - Entry
+            mtf_df: Middle Time Frame DataFrame (e.g., 15m) - Setup
+            htf_df: Higher Time Frame DataFrame (e.g., 1h) - Trend
             
         Returns:
             SMCResult with signal and score
@@ -81,90 +82,48 @@ class SmartMoneyStrategy:
         if ltf_df.empty:
             return self._empty_result()
         
+        # Fallback if MTF or HTF missing
+        if mtf_df is None: mtf_df = ltf_df
+        if htf_df is None: htf_df = mtf_df
+        
         # Get current price
         current_price = ltf_df['close'].iloc[-1]
         
-        # Step 1: HTF Bias Analysis (30% weight)
-        htf_score, htf_aligned, htf_bias = self._analyze_htf(htf_df if htf_df is not None else ltf_df)
+        # Step 1: HTF Trend Bias (25% weight)
+        htf_score, htf_aligned, htf_bias = self._analyze_htf(htf_df)
         
-        # If no clear HTF trend, reject immediately
-        if not htf_aligned:
-            return SMCResult(
-                symbol='',
-                signal='NEUTRAL',
-                score=0,
-                htf_aligned=False,
-                liquidity_sweep=False,
-                mss_confirmed=False,
-                fvg_present=False,
-                ob_present=False,
-                pattern='NO_TREND',
-                details={'rejection_reason': 'No clear HTF trend'}
-            )
+        # Step 2: MTF Setup Validation (25% weight)
+        mtf_score, mtf_aligned, mtf_data = self._analyze_mtf_setup(mtf_df, htf_bias)
         
-        # Step 2: Liquidity Sweep Detection (20% weight)
-        liquidity_score, sweep_detected, sweep_signal, liquidity_data = self._analyze_liquidity(ltf_df)
+        # Step 3: Liquidity Sweep Detection (20% weight) - Usually on MTF or LTF
+        liquidity_score, sweep_detected, sweep_signal, liquidity_data = self._analyze_liquidity(mtf_df)
         
-        # Step 3: Market Structure Shift (20% weight)
+        # Step 4: MSS Confirmation (20% weight) - On LTF for entry
         mss_score, mss_confirmed, mss_data = self._analyze_mss(ltf_df)
         
-        # Step 4: FVG Detection (20% weight)
-        fvg_score, fvg_present, fvg_data = self._analyze_fvg(ltf_df, current_price)
+        # Step 5: FVG/OB (Contextual)
+        fvg_score, fvg_present, fvg_data = self._analyze_fvg(mtf_df, current_price)
+        ob_score, ob_present, ob_data = self._analyze_ob(mtf_df, current_price)
         
-        # Step 5: Order Block Detection (bonus, not required)
-        ob_score, ob_present, ob_data = self._analyze_ob(ltf_df, current_price)
-        
-        # Step 6: Volume Analysis (10% weight)
+        # Step 6: Volume (10% weight)
         volume_score, volume_data = self._analyze_volume(ltf_df)
         
         # Calculate total score
-        total_score = min(100, htf_score + liquidity_score + mss_score + fvg_score + volume_score + ob_score)
+        total_score = min(100, htf_score + mtf_score + liquidity_score + mss_score + volume_score + (fvg_score if fvg_present else 0))
         
         # Determine signal based on confluence
-        signal = self._determine_signal(
-            htf_bias, sweep_signal, mss_data, fvg_data, sweep_detected, mss_confirmed, fvg_present
+        signal = self._determine_signal_3tier(
+            htf_bias, sweep_signal, mss_data, mtf_aligned, sweep_detected, mss_confirmed
         )
-        
-        # Determine pattern
-        pattern = self._determine_pattern(fvg_present, ob_present, fvg_data, ob_data)
         
         # Build details
         details = {
-            'htf': {
-                'aligned': htf_aligned,
-                'bias': htf_bias,
-                'score': htf_score
-            },
-            'liquidity': {
-                'sweep_detected': sweep_detected,
-                'sweep_signal': sweep_signal,
-                'pdh': liquidity_data.get('pdh'),
-                'pdl': liquidity_data.get('pdl'),
-                'score': liquidity_score
-            },
-            'mss': {
-                'confirmed': mss_confirmed,
-                'bias': mss_data.get('trend_bias'),
-                'structure': mss_data.get('structure'),
-                'score': mss_score
-            },
-            'fvg': {
-                'present': fvg_present,
-                'at_fvg': fvg_data.get('at_fvg'),
-                'type': 'bullish' if fvg_data.get('nearest_support') else 'bearish' if fvg_data.get('nearest_resistance') else None,
-                'score': fvg_score
-            },
-            'ob': {
-                'present': ob_present,
-                'at_ob': ob_data.get('at_ob'),
-                'type': 'bullish' if ob_data.get('nearest_support') else 'bearish' if ob_data.get('nearest_resistance') else None
-            },
-            'volume': {
-                'spike': volume_data.get('spike'),
-                'current': volume_data.get('current'),
-                'avg': volume_data.get('avg'),
-                'score': volume_score
-            },
+            'htf': {'bias': htf_bias, 'score': htf_score},
+            'mtf': {'aligned': mtf_aligned, 'score': mtf_score, 'data': mtf_data},
+            'liquidity': {'sweep': sweep_detected, 'signal': sweep_signal, 'score': liquidity_score},
+            'mss': {'confirmed': mss_confirmed, 'score': mss_score},
+            'fvg': {'present': fvg_present, 'data': fvg_data},
+            'ob': {'present': ob_present, 'data': ob_data},
             'current_price': current_price
         }
         
@@ -173,13 +132,43 @@ class SmartMoneyStrategy:
             signal=signal,
             score=total_score,
             htf_aligned=htf_aligned,
+            mtf_aligned=mtf_aligned,
             liquidity_sweep=sweep_detected,
             mss_confirmed=mss_confirmed,
             fvg_present=fvg_present,
             ob_present=ob_present,
-            pattern=pattern,
+            pattern=self._determine_pattern(fvg_present, ob_present, fvg_data, ob_data),
             details=details
         )
+
+    def _analyze_mtf_setup(self, mtf_df: pd.DataFrame, htf_bias: str) -> Tuple[int, bool, Dict]:
+        """Validate MTF setup against HTF bias."""
+        mss_data = self.mss_detector.get_mss_analysis(mtf_df)
+        mtf_bias = mss_data.get('trend_bias', 'neutral')
+        
+        aligned = (mtf_bias == htf_bias) or (mtf_bias.replace('_weak', '') == htf_bias)
+        score = self.WEIGHT_MTF if aligned else 0
+        
+        return score, aligned, mss_data
+
+    def _determine_signal_3tier(self, htf_bias: str, sweep_signal: str, mss_data: Dict, 
+                                mtf_aligned: bool, sweep_detected: bool, mss_confirmed: bool) -> str:
+        """Determine signal using 3-tier confluence."""
+        if not htf_bias or htf_bias == 'neutral': return 'NEUTRAL'
+        
+        # Minimum requirements: HTF aligned and either sweep or MSS
+        if not mtf_aligned: return 'NEUTRAL'
+        
+        mss_bias = mss_data.get('trend_bias', 'neutral')
+        
+        if htf_bias == 'bullish':
+            if (sweep_signal == 'BUY' or mss_bias in ['bullish', 'bullish_weak']) and (sweep_detected or mss_confirmed):
+                return 'BUY'
+        elif htf_bias == 'bearish':
+            if (sweep_signal == 'SELL' or mss_bias in ['bearish', 'bearish_weak']) and (sweep_detected or mss_confirmed):
+                return 'SELL'
+                
+        return 'NEUTRAL'
     
     def _analyze_htf(self, htf_df: pd.DataFrame) -> Tuple[int, bool, str]:
         """

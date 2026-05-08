@@ -34,7 +34,7 @@ class LiveSMCEngine:
     
     def __init__(self, fyers_client, scanner, interval: int = 5, 
                  auto_trade: bool = False, threshold: int = 75,
-                 ltf_timeframe: str = "5m", htf_timeframe: Optional[str] = None):
+                 ltf_timeframe: str = "5m", mtf_timeframe: str = "15m", htf_timeframe: str = "1h"):
         """
         Initialize Live SMC Engine.
         
@@ -44,8 +44,9 @@ class LiveSMCEngine:
             interval: Polling interval in seconds
             auto_trade: Enable automatic order placement
             threshold: Minimum score for auto-trading
-            ltf_timeframe: Lower timeframe for analysis
-            htf_timeframe: Higher timeframe for bias (auto-calculated if None)
+            ltf_timeframe: Lower timeframe for analysis (5m)
+            mtf_timeframe: Middle timeframe for setup (15m)
+            htf_timeframe: Higher timeframe for bias (1h)
         """
         self.fyers_client = fyers_client
         self.scanner = scanner
@@ -53,18 +54,16 @@ class LiveSMCEngine:
         self.auto_trade = auto_trade
         self.threshold = threshold
         self.ltf_timeframe = ltf_timeframe
-        
-        # Auto-calculate HTF if not provided
-        if htf_timeframe is None and scanner.smc_strategy:
-            self.htf_timeframe = scanner.smc_strategy.get_htf_timeframe(ltf_timeframe)
-        else:
-            self.htf_timeframe = htf_timeframe or "1h"
+        self.mtf_timeframe = mtf_timeframe
+        self.htf_timeframe = htf_timeframe
         
         # State management
         self.running = False
         self.symbols: List[str] = []
         self.htf_cache: Dict[str, Tuple[pd.DataFrame, datetime]] = {}  # Cache HTF data
+        self.mtf_cache: Dict[str, Tuple[pd.DataFrame, datetime]] = {}  # Cache MTF data
         self.htf_cache_ttl = 300  # HTF cache TTL in seconds (5 minutes)
+        self.mtf_cache_ttl = 60   # MTF cache TTL in seconds (1 minute)
         self.last_signals: Dict[str, Dict] = {}  # Track last signals to avoid duplicates
         
         # Timeframe fallback priority
@@ -123,50 +122,58 @@ class LiveSMCEngine:
         
         return htf_df if not htf_df.empty else None
     
+    def get_mtf_data_cached(self, symbol: str) -> Optional[pd.DataFrame]:
+        """
+        Get MTF data with caching.
+        """
+        now = datetime.now()
+        if symbol in self.mtf_cache:
+            cached_df, cached_time = self.mtf_cache[symbol]
+            if (now - cached_time).seconds < self.mtf_cache_ttl:
+                return cached_df
+        
+        mtf_df, _ = self.get_best_timeframe_data(symbol, self.mtf_timeframe, 100)
+        if not mtf_df.empty:
+            self.mtf_cache[symbol] = (mtf_df, now)
+        return mtf_df if not mtf_df.empty else None
+
     def fetch_live_data(self, symbol: str) -> Dict:
         """
-        Fetch live data for a symbol using quotes + recent history.
+        Fetch live data for a symbol using 3-tier MTF.
         
         Returns:
-            Dictionary with live data and LTF DataFrame
+            Dictionary with live data and LTF/MTF/HTF DataFrames
         """
         result = {
             "symbol": symbol,
             "ltf_df": pd.DataFrame(),
+            "mtf_df": None,
             "htf_df": None,
             "current_price": 0,
             "success": False
         }
         
         try:
-            # Get LTF historical data for SMC calculations
-            ltf_df, actual_ltf = self.get_best_timeframe_data(symbol, self.ltf_timeframe, 100)
+            # Get LTF historical data
+            ltf_df, _ = self.get_best_timeframe_data(symbol, self.ltf_timeframe, 100)
             
             if ltf_df.empty or len(ltf_df) < 20:
                 logger.warning(f"No LTF data for {symbol}")
                 return result
             
-            # Get live quote for current price
+            # Get live quote
             quote = get_quotes(self.fyers_client, symbol)
+            current_price = quote.get("last", ltf_df['close'].iloc[-1]) if "error" not in quote else ltf_df['close'].iloc[-1]
             
-            if "error" in quote:
-                logger.warning(f"Quote error for {symbol}: {quote['error']}")
-                # Use last close as current price
-                current_price = ltf_df['close'].iloc[-1]
-            else:
-                current_price = quote.get("last", ltf_df['close'].iloc[-1])
-            
-            # Update last candle with live price
+            # Update last candle
             ltf_df.loc[ltf_df.index[-1], 'close'] = current_price
-            if current_price > ltf_df['high'].iloc[-1]:
-                ltf_df.loc[ltf_df.index[-1], 'high'] = current_price
-            if current_price < ltf_df['low'].iloc[-1]:
-                ltf_df.loc[ltf_df.index[-1], 'low'] = current_price
             
-            # Get cached HTF data
+            # Get cached MTF and HTF
+            mtf_df = self.get_mtf_data_cached(symbol)
             htf_df = self.get_htf_data_cached(symbol)
             
             result["ltf_df"] = ltf_df
+            result["mtf_df"] = mtf_df
             result["htf_df"] = htf_df
             result["current_price"] = current_price
             result["success"] = True
@@ -178,23 +185,20 @@ class LiveSMCEngine:
     
     def scan_symbol_live(self, symbol: str) -> Optional[SMCResult]:
         """
-        Perform live SMC scan on a single symbol.
-        
-        Returns:
-            SMCResult or None
+        Perform live 3-tier SMC scan.
         """
-        # Fetch live data
         live_data = self.fetch_live_data(symbol)
-        
         if not live_data["success"]:
             return None
         
-        # Perform SMC analysis
+        # Perform 3-tier SMC analysis
         smc_result = self.scanner.smc_strategy.analyze(
             live_data["ltf_df"], 
+            live_data["mtf_df"],
             live_data["htf_df"]
         )
         smc_result.symbol = symbol
+        smc_result.details['current_price'] = live_data['current_price']
         
         return smc_result
     

@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 from typing import Optional, List, Dict, Any
+from .harmonic_detector import HarmonicDetector
 
 
 class PatternDetector:
@@ -10,6 +11,18 @@ class PatternDetector:
     def __init__(self, min_pattern_size: int = 5, confidence_threshold: float = 0.7):
         self.min_pattern_size = min_pattern_size
         self.confidence_threshold = confidence_threshold
+        self.harmonic_detector = HarmonicDetector(swing_lookback=min_pattern_size)
+
+    def detect_harmonic_patterns(self, df: pd.DataFrame) -> Optional[Dict[str, Any]]:
+        """Detect harmonic patterns."""
+        analysis = self.harmonic_detector.get_harmonic_analysis(df)
+        if analysis['has_pattern'] and analysis['confidence'] >= self.confidence_threshold:
+            return {
+                "name": analysis['latest_pattern'],
+                "direction": analysis['direction'],
+                "confidence": analysis['confidence']
+            }
+        return None
 
     def detect_flag_pattern(self, df: pd.DataFrame) -> Optional[Dict[str, Any]]:
         """Detect bull/bear flag patterns."""
@@ -89,7 +102,14 @@ class PatternDetector:
         """Detect all patterns in the data."""
         patterns = []
 
-        for detector in [self.detect_flag_pattern, self.detect_triangle_pattern, self.detect_pennant_pattern]:
+        detectors = [
+            self.detect_flag_pattern, 
+            self.detect_triangle_pattern, 
+            self.detect_pennant_pattern,
+            self.detect_harmonic_patterns
+        ]
+
+        for detector in detectors:
             result = detector(df)
             if result and result["confidence"] >= self.confidence_threshold:
                 patterns.append(result)
