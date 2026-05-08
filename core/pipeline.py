@@ -72,6 +72,8 @@ class PipelineConfig:
     # Market settings
     symbols: List[str] = field(default_factory=list)
     scan_interval: int = 60
+    main_timeframe: str = "1h"  # 1H for trend confirmation
+    entry_timeframe: str = "5m"  # 5M for entries
 
 
 class TradingPipeline:
@@ -302,10 +304,11 @@ class TradingPipeline:
         try:
             from api import get_historical_data
             
+            # Use main_timeframe from config (1H for trend, 5M for entries)
             df = get_historical_data(
                 self.fyers_client,
                 symbol,
-                resolution="D",
+                resolution=self.config.main_timeframe,
                 count=50
             )
             

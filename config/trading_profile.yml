@@ -55,7 +55,7 @@ trading_preferences:
   auto_trading:
     enabled: false
     confirmation_required: true
-    min_signal_score: 75
+    min_signal_score: 60.0
     paper_trading: true
   
   scanning:
@@ -70,19 +70,26 @@ strategies:
   enabled:
     - "smart_money"
     - "order_block"
-    - "fvg_detector"
+    # - "fvg_detector"  # PAUSED: Hit stop loss, disabled temporarily
+  
+  # Paper trading timeframe settings
+  timeframe:
+    main: "1h"      # 1-hour for trend confirmation
+    entry: "5m"     # 5-minute for trade entries
+    higher: "4h"    # 4-hour for broader context
   
   smart_money:
-    min_pattern_size: 5
-    confidence_threshold: 0.70
-    require_fvg: true
-    require_mss: true
+    min_pattern_size: 3
+    confidence_threshold: 0.60
+    require_fvg: false
+    require_mss: false
     
   order_block:
     lookback_periods: 20
     volume_threshold: 1.5
     
   fvg_detector:
+    enabled: false   # PAUSED due to stop loss hit
     min_gap_size: 0.5
     fill_threshold: 0.3
 

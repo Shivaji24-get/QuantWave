@@ -471,6 +471,10 @@ def start_bot_cmd(
             console.print("[red]Error: Could not load configuration. Check config/trading_profile.yml exists.[/red]")
             return
         
+        # Load timeframe settings from YAML
+        strategies_config = config_dict.get('strategies', {})
+        timeframe_config = strategies_config.get('timeframe', {})
+        
         # Create PipelineConfig from dict (flattened YAML structure)
         pipeline_config = PipelineConfig(
             max_concurrent=config_dict.get('max_concurrent', 5),
@@ -482,7 +486,9 @@ def start_bot_cmd(
             min_signal_score=config_dict.get('min_signal_score', 75.0),
             min_risk_reward=config_dict.get('min_risk_reward_ratio', 1.5),
             symbols=config_dict.get('symbols', ["NSE:NIFTY50-INDEX", "NSE:BANKNIFTY-INDEX"]),
-            scan_interval=config_dict.get('scan_interval', 60)
+            scan_interval=config_dict.get('scan_interval', 60),
+            main_timeframe=timeframe_config.get('main', '1h'),      # 1H for trend
+            entry_timeframe=timeframe_config.get('entry', '5m')    # 5M for entries
         )
         
         # Get API client and tracker (use existing get_client function from this module)
@@ -518,6 +524,7 @@ def start_bot_cmd(
             console.print(f"[yellow]Press Ctrl+C to stop[/yellow]")
             console.print(f"[dim]Monitoring {len(symbols)} symbols: {', '.join(symbols)}[/dim]")
             console.print(f"[dim]Scan interval: {interval} seconds[/dim]")
+            console.print(f"[dim]Timeframes: Main={pipeline_config.main_timeframe.upper()}, Entry={pipeline_config.entry_timeframe.upper()}[/dim]")
             
             try:
                 while pipeline._running:
