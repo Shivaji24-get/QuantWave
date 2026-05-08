@@ -1,10 +1,40 @@
-# TradingBot Profile Configuration
-# Personal trading preferences - EDIT THIS FILE
-# Copy from trading_profile.example.yml if needed
+# =============================================================================
+# TradingBot Configuration File
+# =============================================================================
+# 
+# 🎯 PURPOSE: This file controls ALL bot behavior. Edit carefully!
+# 
+# 📝 HOW TO USE:
+#   1. Fill in YOUR details (name, API keys)
+#   2. Adjust RISK settings (start conservative!)
+#   3. Set your STOCKS (default_symbols)
+#   4. Configure STRATEGY (enable/disable as needed)
+#   5. Save and run: python -m cli.main start-bot --paper
+# 
+# ⚠️  SAFETY FIRST:
+#   - Keep paper_trading: true until you're confident
+#   - Keep auto_trading: enabled: false until ready
+#   - Start with small risk_per_trade (0.01 = 1%)
+# 
+# 📚 DOCUMENTATION:
+#   - QUICKSTART.md - Get started in 5 minutes
+#   - USAGE_GUIDE.md - Detailed feature docs
+#   - README.md - Project overview
+# 
+# 🔧 FILE SECTIONS:
+#   1. trader          - Your identity & notifications
+#   2. risk_profile    - Money management & safety limits
+#   3. trading_preferences - Symbols, timeframes, modes
+#   4. strategies      - Which strategies to run
+#   5. api            - Fyers API credentials
+#   6. alerts          - Notification settings
+# 
+# =============================================================================
 
 # =============================================================================
 # TRADER IDENTITY
 # =============================================================================
+# Your info for logs and reports. Optional but helpful.
 trader:
   name: "Your Name"
   email: "anumandla.shivaji@gmail.com"
@@ -42,6 +72,19 @@ trading_preferences:
     - "NSE:TCS-EQ"
     - "NSE:HDFCBANK-EQ"
     - "NSE:ICICIBANK-EQ"
+    - "NSE:NUVAMA-EQ"
+    - "NSE:PIDILITIND-EQ"
+    - "NSE:BIOCON-EQ"
+    - "NSE:COFORGE-EQ"
+    - "NSE:LAURUSLABS-EQ"
+    - "NSE:DABUR-EQ"
+    - "NSE:MOTHERSON-EQ"
+    - "NSE:TECHM-EQ"
+    - "NSE:SRF-EQ"
+    - "NSE:PERSISTENT-EQ"
+    - "NSE:WAAREEENER-EQ"
+    - "NSE:CROMPTON-EQ"
+    - "NSE:AUROPHARMA-EQ"
   
   market_session:
     pre_market_start: "09:00"

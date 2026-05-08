@@ -10,7 +10,46 @@
 
 ---
 
-## 📋 Table of Contents
+## � Quick Start (For Beginners)
+
+**New to this project? Start here!**
+
+### What Does This Bot Do?
+1. **Scans** Indian stock markets automatically
+2. **Analyzes** stocks using technical indicators (RSI, patterns, volume)
+3. **Generates** BUY/SELL signals with confidence scores
+4. **Simulates** trades (paper mode = fake money, 100% safe)
+5. **Tracks** all performance automatically
+
+### 5-Minute Setup
+
+```bash
+# 1. Install requirements
+pip install -r requirements.txt
+
+# 2. Copy and edit config
+copy config\trading_profile.example.yml config\trading_profile.yml
+notepad config\trading_profile.yml
+# Add your Fyers Client ID and Secret Key
+
+# 3. Login to Fyers
+python -m cli.main login
+
+# 4. Start paper trading (SAFE - fake money)
+python -m cli.main start-bot --paper
+```
+
+**That's it!** The bot is now running and scanning 19 stocks every minute.
+
+### 📚 Documentation Files
+- **[QUICKSTART.md](QUICKSTART.md)** - Get started in 5 minutes
+- **[USAGE_GUIDE.md](USAGE_GUIDE.md)** - Complete feature documentation
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Technical system design
+- **[SKILL.md](SKILL.md)** - Feature reference and examples
+
+---
+
+## �📋 Table of Contents
 
 - [Overview](#overview)
 - [Key Features](#key-features)

@@ -1,9 +1,69 @@
 """
 Trading Pipeline - Workflow orchestration module.
 
-Inspired by Career-Ops batch processing and pipeline patterns.
-This module orchestrates the complete trading workflow from signal
-generation to order execution and position tracking.
+================================================================================
+WHAT IS THIS FILE?
+================================================================================
+This is the HEART of the trading bot. It orchestrates everything:
+- Fetching market data from Fyers API
+- Generating trading signals using strategies
+- Checking risk limits (stop loss, position sizing)
+- Tracking trades and performance
+- Executing orders (in paper or live mode)
+
+================================================================================
+WORKFLOW: How a Trading Cycle Works
+================================================================================
+For EACH symbol (every 60 seconds during market hours):
+
+  1. FETCH MARKET DATA
+     ↓ Get 1H candles for trend analysis
+     ↓ Get 5M candles for entry signals
+     
+  2. GENERATE SIGNALS
+     ↓ Run Smart Money Concepts (SMC) strategy
+     ↓ Run Order Block detection
+     ↓ Calculate signal score (0-100)
+     
+  3. VALIDATE RISK
+     ↓ Check: Max positions not exceeded?
+     ↓ Check: Daily loss limit not hit?
+     ↓ Check: Risk/Reward ratio acceptable?
+     
+  4. LOG OR TRADE
+     ↓ If paper mode: Simulate the trade
+     ↓ If live mode: Place real order
+     ↓ Save to signals.md and positions.md
+     
+  5. MONITOR POSITIONS
+     ↓ Check for stop loss hit
+     ↓ Check for target reached
+     ↓ Update unrealized P&L
+
+================================================================================
+KEY CLASSES
+================================================================================
+- TradingPipeline: Main orchestrator (you interact with this)
+- PipelineConfig: Settings (symbols, timeframes, risk limits)
+- PipelineResult: Result of each trading cycle
+- PipelineStep: Enum of pipeline stages
+
+================================================================================
+FOR BEGINNERS
+================================================================================
+You DON'T need to edit this file. It's configured via:
+- config/trading_profile.yml (your settings)
+- CLI commands (how you interact)
+
+To START the pipeline:
+    python -m cli.main start-bot --paper
+
+To UNDERSTAND output:
+    - "Cycle complete: X/Y successful" = Data fetched successfully
+    - Check data/signals.md for generated signals
+    - Check data/positions.md for trades
+
+================================================================================
 """
 
 import logging
@@ -54,26 +114,63 @@ class PipelineResult:
 
 @dataclass
 class PipelineConfig:
-    """Configuration for trading pipeline."""
-    # Execution settings
-    max_concurrent: int = 5
-    timeout_seconds: float = 30.0
-    retry_attempts: int = 3
+    """
+    Configuration for trading pipeline.
     
-    # Feature toggles
-    enable_auto_trade: bool = False
-    require_confirmation: bool = True
-    paper_trading: bool = True
+    These settings control HOW the bot trades. They come from:
+    config/trading_profile.yml → loaded by CLI → passed here
     
-    # Validation settings
-    min_signal_score: float = 75.0
-    min_risk_reward: float = 1.5
+    KEY SETTINGS FOR BEGINNERS:
+    ---------------------------
+    paper_trading (bool): 
+        True = Fake money (safe for testing)
+        False = Real money (only after weeks of testing!)
     
-    # Market settings
-    symbols: List[str] = field(default_factory=list)
-    scan_interval: int = 60
-    main_timeframe: str = "1h"  # 1H for trend confirmation
-    entry_timeframe: str = "5m"  # 5M for entries
+    enable_auto_trade (bool):
+        True = Bot places orders automatically
+        False = Bot only logs signals, you trade manually
+        
+    min_signal_score (float):
+        Minimum confidence (0-100) to take a trade
+        60 = More trades, lower quality
+        85 = Fewer trades, higher quality
+        
+    symbols (List[str]):
+        Which stocks to monitor
+        Example: ["NSE:NIFTY50-INDEX", "NSE:RELIANCE-EQ"]
+        
+    scan_interval (int):
+        Seconds between market checks
+        60 = Check every minute
+        300 = Check every 5 minutes
+        
+    main_timeframe (str):
+        "1h" = 1-hour candles for trend analysis
+        "D" = Daily candles for swing trading
+        
+    entry_timeframe (str):
+        "5m" = 5-minute candles for entries
+        "15m" = 15-minute candles for swing entries
+    """
+    # Execution settings - How fast/safe the bot runs
+    max_concurrent: int = 5           # Max parallel API calls
+    timeout_seconds: float = 30.0     # API timeout
+    retry_attempts: int = 3           # Retries on failure
+    
+    # Feature toggles - Turn features ON/OFF
+    enable_auto_trade: bool = False    # ⚠️ AUTO-TRADING: True = Bot places orders!
+    require_confirmation: bool = True  # Always confirm before live trades
+    paper_trading: bool = True         # True = Fake money (safe mode)
+    
+    # Validation settings - Signal quality filters
+    min_signal_score: float = 75.0     # Min confidence (0-100)
+    min_risk_reward: float = 1.5       # Min risk/reward ratio (1.5 = 1:1.5)
+    
+    # Market settings - What and when to trade
+    symbols: List[str] = field(default_factory=list)  # Stocks to monitor
+    scan_interval: int = 60                            # Seconds between scans
+    main_timeframe: str = "1h"                         # Trend timeframe (1H)
+    entry_timeframe: str = "5m"                       # Entry timeframe (5M)
 
 
 class TradingPipeline:

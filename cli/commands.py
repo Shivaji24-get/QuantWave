@@ -449,7 +449,34 @@ def start_bot_cmd(
     paper: bool = typer.Option(True, "--paper/--live", help="Paper trading or live mode"),
     config_file: str = typer.Option(None, "--config", help="Custom config file path")
 ):
-    """Start the trading bot with configuration."""
+    """
+    Start the trading bot with configuration.
+    
+    WORKFLOW FOR BEGINNERS:
+    ----------------------
+    1. Load Configuration → Reads config/trading_profile.yml
+    2. Connect to Fyers → Verifies API token is valid
+    3. Health Checks → Tests all components (pipeline, risk, signals)
+    4. Start Monitoring → Enters continuous loop (every 60 seconds)
+    5. For Each Symbol:
+       a. Fetch market data (1H timeframe for trend)
+       b. Generate trading signals (5M timeframe for entries)
+       c. Check risk limits
+       d. If signal is strong → Log to signals.md
+       e. If auto-trading enabled → Place order
+    6. Repeat until Ctrl+C (or market closes)
+    
+    EXAMPLES:
+    ---------
+    # Safe paper trading (recommended for beginners)
+    python -m cli.main start-bot --paper
+    
+    # Live trading (real money - use with caution!)
+    python -m cli.main start-bot --live
+    
+    # Custom config file
+    python -m cli.main start-bot --paper --config my_config.yml
+    """
     console.print("[cyan]Starting Trading Bot...[/cyan]")
     
     mode = "paper" if paper else "live"
@@ -461,7 +488,8 @@ def start_bot_cmd(
         from core.tracker import TradingTracker
         from utils import load_config
         
-        # Load config - use default if no custom config provided
+        # STEP 1: Load Configuration from YAML file
+        # This reads your settings: symbols, risk limits, API keys, etc.
         if config_file:
             config_dict = load_config(config_file)
         else:
@@ -502,7 +530,8 @@ def start_bot_cmd(
             tracker=tracker
         )
         
-        # Pre-flight checks
+        # STEP 3: Health Check - Verify everything is working
+        # This checks: API connection, config loaded, risk manager, signal generator
         console.print("[cyan]Running pre-flight checks...[/cyan]")
         checks = pipeline.health_check()
         
@@ -514,7 +543,8 @@ def start_bot_cmd(
             console.print("[green]All checks passed! Starting bot...[/green]")
             pipeline.start()
             
-            # Continuous execution loop
+            # STEP 4: Continuous Trading Loop
+            # This runs until you press Ctrl+C or market closes
             import time
             from utils import is_market_open
             
@@ -525,6 +555,7 @@ def start_bot_cmd(
             console.print(f"[dim]Monitoring {len(symbols)} symbols: {', '.join(symbols)}[/dim]")
             console.print(f"[dim]Scan interval: {interval} seconds[/dim]")
             console.print(f"[dim]Timeframes: Main={pipeline_config.main_timeframe.upper()}, Entry={pipeline_config.entry_timeframe.upper()}[/dim]")
+            console.print(f"\n[dim]Output files: data/signals.md | data/positions.md | logs/trading.log[/dim]")
             
             try:
                 while pipeline._running:
