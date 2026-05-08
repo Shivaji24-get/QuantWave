@@ -1089,6 +1089,112 @@ def paper_cmd(
         console.print(f"[red]Error: {e}[/red]")
 
 
+def positions_cmd():
+    """View current open positions and recent trades."""
+    console.print("[cyan]Current Positions[/cyan]")
+    
+    try:
+        # Read positions from markdown file
+        positions_file = Path("data/positions.md")
+        if positions_file.exists():
+            content = positions_file.read_text()
+            console.print(content)
+        else:
+            console.print("[yellow]No positions file found. Start the bot to generate positions.[/yellow]")
+            
+        # Also show active positions from tracker
+        from core.tracker import TradingTracker
+        tracker = TradingTracker()
+        active = tracker.get_active_positions()
+        
+        if active:
+            console.print(f"\n[green]Active Positions: {len(active)}[/green]")
+            for pos in active:
+                console.print(f"  {pos.symbol}: {pos.quantity} shares @ ₹{pos.entry_price:.2f}")
+        else:
+            console.print("\n[dim]No active positions[/dim]")
+            
+    except Exception as e:
+        console.print(f"[red]Error loading positions: {e}[/red]")
+
+
+def report_cmd(
+    format: str = typer.Option("markdown", "--format", help="Report format: markdown/json")
+):
+    """Generate trading performance report."""
+    console.print(f"[cyan]Generating {format} report...[/cyan]")
+    
+    try:
+        from core.metrics import MetricsCollector
+        from core.tracker import TradingTracker
+        from datetime import datetime
+        from pathlib import Path
+        
+        tracker = TradingTracker()
+        collector = MetricsCollector(tracker)
+        
+        # Generate report
+        output_path = f"reports/trading_report_{datetime.now().strftime('%Y%m%d')}.{format}"
+        Path("reports").mkdir(exist_ok=True)
+        
+        report = collector.generate_report(
+            output_path=output_path,
+            format=format
+        )
+        
+        # Display summary
+        console.print("\n[bold green]Report Generated[/bold green]")
+        console.print(f"Report saved to: {output_path}")
+        
+        # Show preview
+        console.print("\n[dim]Preview:[/dim]")
+        metrics = collector.calculate_metrics()
+        console.print(f"  Total Trades: {metrics.total_trades}")
+        console.print(f"  Win Rate: {metrics.win_rate:.1f}%")
+        console.print(f"  Net P&L: ₹{metrics.net_pnl:,.2f}")
+        
+    except Exception as e:
+        console.print(f"[red]Error generating report: {e}[/red]")
+
+
+def signals_cmd(
+    limit: int = typer.Option(20, "--limit", help="Number of signals to show"),
+    executed_only: bool = typer.Option(False, "--executed", help="Show only executed signals")
+):
+    """View generated trading signals."""
+    console.print(f"[cyan]Last {limit} signals[/cyan]")
+    
+    try:
+        signals_file = Path("data/signals.md")
+        if signals_file.exists():
+            lines = signals_file.read_text().split("\n")
+            
+            # Find table data (skip header)
+            data_lines = []
+            in_table = False
+            for line in lines:
+                if "| # |" in line:
+                    in_table = True
+                    continue
+                if in_table and line.startswith("|") and "Date" not in line:
+                    data_lines.append(line)
+            
+            # Show last N signals
+            show_lines = data_lines[-limit:] if len(data_lines) > limit else data_lines
+            
+            if show_lines:
+                console.print("\n[bold]Recent Signals:[/bold]")
+                for line in show_lines:
+                    console.print(line)
+            else:
+                console.print("[yellow]No signals generated yet.[/yellow]")
+        else:
+            console.print("[yellow]No signals file found. Start the bot to generate signals.[/yellow]")
+            
+    except Exception as e:
+        console.print(f"[red]Error loading signals: {e}[/red]")
+
+
 def metrics_cmd(
     category: str = typer.Option("all", "--category", help="Metrics category: returns/risk/trades/all"),
     period: str = typer.Option("30d", "--period", help="Time period")

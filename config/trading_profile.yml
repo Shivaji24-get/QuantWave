@@ -2,26 +2,26 @@
 # TradingBot Configuration File
 # =============================================================================
 # 
-# 🎯 PURPOSE: This file controls ALL bot behavior. Edit carefully!
+# PURPOSE: This file controls ALL bot behavior. Edit carefully!
 # 
-# 📝 HOW TO USE:
+# HOW TO USE:
 #   1. Fill in YOUR details (name, API keys)
 #   2. Adjust RISK settings (start conservative!)
 #   3. Set your STOCKS (default_symbols)
 #   4. Configure STRATEGY (enable/disable as needed)
 #   5. Save and run: python -m cli.main start-bot --paper
 # 
-# ⚠️  SAFETY FIRST:
+# SAFETY FIRST:
 #   - Keep paper_trading: true until you're confident
 #   - Keep auto_trading: enabled: false until ready
 #   - Start with small risk_per_trade (0.01 = 1%)
 # 
-# 📚 DOCUMENTATION:
+# DOCUMENTATION:
 #   - QUICKSTART.md - Get started in 5 minutes
 #   - USAGE_GUIDE.md - Detailed feature docs
 #   - README.md - Project overview
 # 
-# 🔧 FILE SECTIONS:
+# FILE SECTIONS:
 #   1. trader          - Your identity & notifications
 #   2. risk_profile    - Money management & safety limits
 #   3. trading_preferences - Symbols, timeframes, modes
@@ -66,8 +66,8 @@ risk_profile:
 # =============================================================================
 trading_preferences:
   default_symbols:
-    - "NSE:NIFTY50-INDEX"
-    - "NSE:NIFTYBANK-INDEX"
+    - "NSE:NIFTY50"           # NIFTY 50 Index
+    - "NSE:BANKNIFTY"         # Bank Nifty Index (corrected format)
     - "NSE:RELIANCE-EQ"
     - "NSE:TCS-EQ"
     - "NSE:HDFCBANK-EQ"
