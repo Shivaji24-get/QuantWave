@@ -51,6 +51,8 @@ class StockScanner(HarmonicScanner):
         Returns:
             List of scan results
         """
+        if symbols is None or len(symbols) == 0:
+            return []
         results = self.scan_multiple(symbols, timeframe=timeframe, limit=limit, client=client)
         return results
     
