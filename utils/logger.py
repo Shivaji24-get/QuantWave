@@ -85,7 +85,7 @@ class TradingAdapter(logging.LoggerAdapter):
 
 
 def setup_logging(
-    log_file: str = "trading_bot.log",
+    log_file: str = "quantwave.log",
     log_level: str = "INFO",
     structured: bool = False,
     log_dir: str = "logs"
@@ -137,7 +137,7 @@ def setup_logging(
         handlers=[file_handler, console_handler]
     )
     
-    logger = logging.getLogger("trading_bot")
+    logger = logging.getLogger("quantwave")
     adapter = TradingAdapter(logger, {
         'start_time': datetime.utcnow().isoformat()
     })
@@ -146,7 +146,7 @@ def setup_logging(
     return adapter
 
 
-def get_logger(name: str = "trading_bot", extra: Optional[Dict[str, Any]] = None) -> TradingAdapter:
+def get_logger(name: str = "quantwave", extra: Optional[Dict[str, Any]] = None) -> TradingAdapter:
     """
     Get a trading logger adapter.
     

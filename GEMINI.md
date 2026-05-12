@@ -1,10 +1,10 @@
-# TradingBot — AI-Powered Trading Automation (Gemini CLI)
+# QuantWave — AI-Powered Trading Automation (Gemini CLI)
 
 > This file is auto-loaded by the Gemini CLI as persistent context.
-> It is the Gemini equivalent of CLAUDE.md for the TradingBot project.
+> It is the Gemini equivalent of CLAUDE.md for the QuantWave project.
 > All slash commands are defined in `.gemini/commands/`.
 
-## What is TradingBot
+## What is QuantWave
 
 AI-powered trading automation for Indian stock markets (NSE): automated signal generation, risk management, backtesting, paper trading, and live execution with Fyers API.
 

@@ -64,7 +64,7 @@ class TradingProfile:
 
     # Logging
     log_level: str = "INFO"
-    log_file: str = "trading_bot.log"
+    log_file: str = "quantwave.log"
 
 
 # ---------------------------------------------------------------------------
@@ -140,7 +140,7 @@ def load_yaml_profile(profile_path: str = "config/trading_profile.yml") -> Dict[
     # Logging
     advanced = data.get("advanced", {})
     cfg["log_level"] = advanced.get("log_level", "INFO")
-    cfg["log_file"] = "trading_bot.log"
+    cfg["log_file"] = "quantwave.log"
 
     return cfg
 
@@ -179,7 +179,7 @@ def load_ini_config(config_path: str = "config.ini") -> Dict[str, Any]:
         "market_close_time":        get("TRADING_CONFIG", "market_close_time", "15:30"),
 
         "log_level":  get("LOGGING", "log_level",  "INFO"),
-        "log_file":   get("LOGGING", "log_file",   "trading_bot.log"),
+        "log_file":   get("LOGGING", "log_file",   "quantwave.log"),
         "export_csv": parser.getboolean("LOGGING", "export_csv", fallback=True),
         "symbols": [
             s.strip()
@@ -287,7 +287,7 @@ def get_profile(config: Dict[str, Any]) -> TradingProfile:
         secret_key=config.get("secret_key", ""),
         redirect_uri=config.get("redirect_uri", "http://127.0.0.1:5000/fyers/callback"),
         log_level=config.get("log_level", "INFO"),
-        log_file=config.get("log_file", "trading_bot.log"),
+        log_file=config.get("log_file", "quantwave.log"),
     )
 
 

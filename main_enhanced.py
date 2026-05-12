@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Enhanced TradingBot Main Entry Point.
+Enhanced QuantWave Main Entry Point.
 
 Uses the new modular architecture with pipeline orchestration,
 structured tracking, and enhanced error handling.
@@ -30,9 +30,9 @@ from api import FyersClient, get_funds, get_historical_data, get_quotes, place_o
 from strategies import SignalGenerator, RiskManager
 
 
-class TradingBot:
+class QuantWave:
     """
-    Enhanced TradingBot using pipeline architecture.
+    Enhanced QuantWave using pipeline architecture.
     
     This replaces the monolithic main() with a structured,
     modular approach inspired by Career-Ops workflow patterns.
@@ -42,7 +42,7 @@ class TradingBot:
         self.config = config
         self.profile = get_profile(config)
         self.logger = setup_logging(
-            log_file=config.get("log_file", "trading_bot.log"),
+            log_file=config.get("log_file", "quantwave.log"),
             log_level=config.get("log_level", "INFO"),
             structured=True,
             log_dir="logs"
@@ -294,7 +294,7 @@ class TradingBot:
     def run(self):
         """Main trading bot loop."""
         self.logger.info("=" * 60)
-        self.logger.info("TradingBot Starting - Enhanced Architecture")
+        self.logger.info("QuantWave Starting - Enhanced Architecture")
         self.logger.info("=" * 60)
         
         try:
@@ -354,7 +354,7 @@ class TradingBot:
                     time.sleep(5)
             
             self._cleanup()
-            self.logger.info("TradingBot stopped gracefully")
+            self.logger.info("QuantWave stopped gracefully")
             return 0
             
         except Exception as e:
@@ -370,7 +370,7 @@ def main():
         config = load_config(prefer_yaml=True)
         
         # Create and run bot
-        bot = TradingBot(config)
+        bot = QuantWave(config)
         exit_code = bot.run()
         sys.exit(exit_code)
         

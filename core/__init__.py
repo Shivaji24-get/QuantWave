@@ -1,5 +1,5 @@
 """
-Core workflow modules for TradingBot.
+Core workflow modules for QuantWave.
 
 This package contains the essential workflow orchestration components
 inspired by the Career-Ops architecture:

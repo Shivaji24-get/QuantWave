@@ -1,8 +1,8 @@
-# TradingBot Architecture
+# QuantWave Architecture
 
 ## Overview
 
-This document describes the refactored TradingBot architecture, inspired by the Career-Ops project structure. The goal is to create a modular, scalable, and maintainable trading automation system.
+This document describes the refactored QuantWave architecture, inspired by the Career-Ops project structure. The goal is to create a modular, scalable, and maintainable trading automation system.
 
 ## Key Principles from Career-Ops
 
@@ -17,7 +17,7 @@ This document describes the refactored TradingBot architecture, inspired by the 
 ## Directory Structure
 
 ```
-TradingBot/
+QuantWave/
 ├── ARCHITECTURE.md           # This file - system documentation
 ├── DATA_CONTRACT.md          # Data separation rules
 ├── README.md                 # User documentation
@@ -45,7 +45,12 @@ TradingBot/
 │   └── funds.py             # Account/funds info
 ├── strategies/               # Trading strategies
 │   ├── __init__.py
-│   ├── base.py              # Base strategy class
+│   ├── base.py              # Base classes (Pattern, Signal, Detector, Scanner)
+│   ├── mss_detector.py      # Market Structure Shift detector
+│   ├── harmonic_detector.py # Harmonic pattern detection engine
+│   ├── harmonic_scanner.py  # Harmonic pattern scanner with async/caching
+│   ├── harmonic_reporter.py # Pattern export and reporting
+│   ├── validators.py       # Data, pattern, API, duplicate validators
 │   ├── signal_generator.py  # Signal generation
 │   ├── risk_manager.py      # Risk controls
 │   ├── order_executor.py    # Order execution
@@ -180,7 +185,173 @@ Trading state machine:
 - `EXIT_PENDING` → Exit order submitted
 - `POSITION_CLOSED` → Trade completed
 
-## Error Handling Strategy
+## Harmonic Scanner Integration
+
+### Overview
+
+The Harmonic Scanner is a pattern detection system integrated into the Gemini CLI workflow for identifying harmonic trading patterns (Gartley, Butterfly, Bat, Crab) using Fibonacci ratio validation.
+
+### Harmonic Scanner Workflow
+
+```
+User Command
+    ↓
+Gemini CLI (harmonic-scan, harmonic-live, harmonic-pattern)
+    ↓
+Command Parser
+    ↓
+Configuration Loader (trading_profile.yml)
+    ↓
+Market Data Fetcher (api/market_data.py)
+    ↓
+Data Validation Layer (validators.py)
+    ↓
+Harmonic Pattern Scanner (harmonic_scanner.py)
+    ↓
+Pattern Detection Engine (harmonic_detector.py)
+    ├─ MSS Detector (mss_detector.py) - Swing point identification
+    ├─ Fibonacci Ratio Calculation
+    └─ Pattern Validation
+    ↓
+Pattern Validation Engine (validators.py)
+    ├─ Ratio validation
+    ├─ Confidence scoring
+    ├─ Duplicate filtering
+    └─ Risk/reward validation
+    ↓
+Signal Generator (harmonic_scanner.py)
+    ↓
+Risk Management (config/trading_profile.yml)
+    ↓
+Trade Execution / Paper Trading
+    ↓
+Report Generator (harmonic_reporter.py)
+    ├─ CSV export
+    ├─ JSON export
+    └─ Markdown reports
+    ↓
+Logs + Database Storage
+```
+
+### Harmonic Scanner Components
+
+#### 1. Base Classes (strategies/base.py)
+
+- **Pattern**: Base class for all detected patterns
+- **Signal**: Trading signal representation
+- **PatternDetector**: Abstract base for pattern detectors
+- **SignalGenerator**: Abstract base for signal generators
+- **Scanner**: Abstract base for market scanners
+
+#### 2. MSS Detector (strategies/mss_detector.py)
+
+- **SwingPoint**: Dataclass for swing high/low points
+- **MSSDetector**: Identifies market structure shifts using configurable lookback
+
+#### 3. Harmonic Detector (strategies/harmonic_detector.py)
+
+- **HarmonicPattern**: Pattern dataclass with Fibonacci ratios, PRZ, entry/SL/TP
+- **HarmonicDetector**: Pattern detection engine
+  - Detects Gartley, Butterfly, Bat, Crab patterns
+  - Fibonacci ratio validation with configurable tolerance
+  - Confidence scoring based on ratio proximity
+  - Potential Reversal Zone (PRZ) calculation
+
+#### 4. Harmonic Scanner (strategies/harmonic_scanner.py)
+
+- **HarmonicScanner**: Multi-symbol scanner with:
+  - Async/parallel scanning support
+  - Data caching (configurable TTL)
+  - Pattern caching
+  - Duplicate pattern filtering
+  - Input validation
+  - Rate limiting awareness
+  - Watchlist scanning with ranking
+
+#### 5. Validators (strategies/validators.py)
+
+- **DataValidator**: DataFrame, symbol, timeframe validation
+- **PatternValidator**: Ratio, confidence, risk/reward validation
+- **APIValidator**: Rate limiting, response validation
+- **DuplicateValidator**: Time-window based duplicate filtering
+
+#### 6. Harmonic Reporter (strategies/harmonic_reporter.py)
+
+- **HarmonicReporter**: Export and reporting
+  - CSV export
+  - JSON export
+  - Markdown reports
+  - Signal history tracking
+
+### CLI Commands
+
+#### harmonic-scan
+
+Scan single or multiple symbols for harmonic patterns.
+
+```bash
+# Single symbol
+trading-bot harmonic-scan --symbol "NSE:RELIANCE-EQ" --timeframe D
+
+# Multiple symbols
+trading-bot harmonic-scan --symbols "NSE:RELIANCE-EQ,NSE:TCS-EQ" --timeframe 5m
+
+# Index group
+trading-bot harmonic-scan --index NIFTY50 --timeframe D
+
+# With export
+trading-bot harmonic-scan --index NIFTY50 --export
+```
+
+#### harmonic-live
+
+Continuous live scanning for harmonic patterns.
+
+```bash
+trading-bot harmonic-live --symbols "NSE:RELIANCE-EQ,NSE:TCS-EQ" --timeframe 5m --interval 60
+```
+
+#### harmonic-pattern
+
+Detailed pattern analysis for a single symbol.
+
+```bash
+trading-bot harmonic-pattern --symbol "NSE:RELIANCE-EQ" --timeframe D
+```
+
+### Configuration
+
+In `config/trading_profile.yml`:
+
+```yaml
+strategies:
+  enabled:
+    - "harmonic"
+  
+  harmonic:
+    enabled: true
+    swing_lookback: 5
+    min_confidence: 0.70
+    tolerance: 0.15
+    patterns:
+      - "Gartley"
+      - "Butterfly"
+      - "Bat"
+      - "Crab"
+    stop_loss_pct: 1.0
+    take_profit_pct: 2.0
+    min_risk_reward: 2.0
+```
+
+### Performance Optimizations
+
+1. **Caching**: Data and pattern caching with configurable TTL (default 60s)
+2. **Parallel Scanning**: ThreadPoolExecutor for multi-symbol scans
+3. **Async Support**: Async methods for non-blocking operations
+4. **Duplicate Filtering**: Time-window based duplicate pattern filtering
+5. **Rate Limiting**: API rate limit awareness and compliance
+
+### Error Handling Strategy
 
 1. **Structured Logging**: JSON format for machine parsing
 2. **Graceful Degradation**: Continue operation on non-critical errors
@@ -197,7 +368,7 @@ Trading state machine:
 
 ## Migration Notes
 
-### What Changed from Original TradingBot
+### What Changed from Original QuantWave
 
 1. **Config System**: Moved from INI to YAML with profile separation
 2. **Logging**: Added structured JSON logging

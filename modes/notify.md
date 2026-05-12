@@ -69,7 +69,7 @@ notifications:
     smtp_port: 587
     username: "your_email@gmail.com"
     password: "${EMAIL_PASSWORD}"  # Use env variable
-    from_address: "trading_bot@yourdomain.com"
+    from_address: "quantwave@yourdomain.com"
     to_address: "your_email@gmail.com"
     events:
       - trade_executed

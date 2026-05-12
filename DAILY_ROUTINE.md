@@ -1,6 +1,6 @@
 # 📅 Daily Trading Routine - Structured Workflow
 
-**Your complete day-by-day guide to using TradingBot**
+**Your complete day-by-day guide to using QuantWave**
 
 ---
 
@@ -10,7 +10,7 @@
 
 ```bash
 # 1. Open terminal and navigate to project
-cd C:\TradingBot
+cd C:\QuantWave
 
 # 2. Check if bot is ready
 python -m cli.main status
@@ -42,7 +42,7 @@ type data\positions.md
 type data\signals.md
 
 # Clear old logs if needed
-del logs\trading.log
+del logs\quantwave.log
 ```
 
 **Verify settings in `config/trading_profile.yml`:**
@@ -263,7 +263,7 @@ type data\signals.md
 
 ### Morning (Before 9:15 AM)
 - [ ] Terminal opened
-- [ ] Navigated to C:\TradingBot
+- [ ] Navigated to C:\QuantWave
 - [ ] Status checked (`python -m cli.main status`)
 - [ ] Logged in (if needed)
 - [ ] Configuration reviewed
@@ -428,7 +428,7 @@ Once you're comfortable:
 Create `start_trading.bat`:
 ```batch
 @echo off
-cd C:\TradingBot
+cd C:\QuantWave
 python -m cli.main start-bot --paper
 ```
 

@@ -1,5 +1,5 @@
 # =============================================================================
-# TradingBot – Python dependencies
+# QuantWave – Python dependencies
 # =============================================================================
 # Install: pip install -r requirements.txt
 #

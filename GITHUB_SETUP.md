@@ -97,7 +97,7 @@ gh repo create fyers-trading-bot --public --description="CLI-based algorithmic t
 ### Initialize Git Repository
 ```bash
 # Navigate to your project folder
-cd E:\Practice\Apr\18-04-26\TradingBot
+cd E:\VStudio\QuantWave
 
 # Initialize git
 git init

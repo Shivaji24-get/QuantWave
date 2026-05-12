@@ -302,7 +302,7 @@ symbols = NSE:NIFTY50-INDEX,NSE:BANKNIFTY-INDEX
 
 [LOGGING]
 log_level = INFO
-log_file = trading_bot.log
+log_file = quantwave.log
 export_csv = true
 ```
 
@@ -365,8 +365,8 @@ System Layer (code, version-controlled):
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/Shivaji24-get/TradingBot.git
-cd TradingBot
+git clone https://github.com/Shivaji24-get/QuantWave.git
+cd QuantWave
 
 # 2. Create and activate a virtual environment
 python -m venv fyers-env
@@ -433,7 +433,7 @@ python scripts/daily_report.py --days 7 --format markdown
 python main_enhanced.py
 
 # Features:
-# - Structured logging to logs/trading_bot.log
+# - Structured logging to logs/quantwave.log
 # - Trade/position tracking in data/*.md files
 # - State machine for workflow management
 # - Automatic retry and circuit breaker patterns
@@ -527,7 +527,7 @@ symbols               = NSE:NIFTY50-INDEX,NSE:BANKNIFTY-INDEX
 
 [LOGGING]
 log_level  = INFO
-log_file   = trading_bot.log
+log_file   = quantwave.log
 export_csv = true
 ```
 

@@ -24,7 +24,7 @@ class PipelineVerifier:
     def verify_all(self) -> bool:
         """Run all verification checks."""
         print("=" * 60)
-        print("TradingBot Pipeline Verification")
+        print("QuantWave Pipeline Verification")
         print("=" * 60)
         
         checks = [

@@ -1,5 +1,5 @@
 # =============================================================================
-# TradingBot – Trading Profile Template
+# QuantWave – Trading Profile Template
 #
 # USAGE:
 #   cp config/trading_profile.example.yml config/trading_profile.yml
@@ -77,21 +77,36 @@ trading_preferences:
 # ---------------------------------------------------------------------------
 strategies:
   enabled:
-    - "smart_money"
-    - "order_block"
+    - "harmonic"
 
   timeframe:
     main: "1h"        # Higher-timeframe trend confirmation
     entry: "5m"       # Lower-timeframe entry signal
     higher: "4h"      # Broader market context
 
+  harmonic:
+    enabled: true
+    swing_lookback: 5
+    min_confidence: 0.70
+    tolerance: 0.15
+    patterns:
+      - "Gartley"
+      - "Butterfly"
+      - "Bat"
+      - "Crab"
+    stop_loss_pct: 1.0
+    take_profit_pct: 2.0
+    min_risk_reward: 2.0
+
   smart_money:
+    enabled: false
     min_pattern_size: 3
     confidence_threshold: 0.60
     require_fvg: false
     require_mss: false
 
   order_block:
+    enabled: false
     lookback_periods: 20
     volume_threshold: 1.5
 

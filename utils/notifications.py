@@ -1,5 +1,5 @@
 """
-Notification system for TradingBot.
+Notification system for QuantWave.
 Supports Telegram and Email.
 """
 import logging
@@ -71,7 +71,7 @@ class NotificationManager:
         except Exception as e:
             logger.error(f"Email exception: {e}")
 
-    def notify(self, message: str, subject: str = "TradingBot Alert"):
+    def notify(self, message: str, subject: str = "QuantWave Alert"):
         """Send notification to all enabled channels."""
         self.send_telegram(message)
         self.send_email(subject, message)

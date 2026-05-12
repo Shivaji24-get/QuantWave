@@ -1,4 +1,4 @@
-# Security Guide – TradingBot
+# Security Guide – QuantWave
 
 ## ⚠️  Immediate Action Required
 

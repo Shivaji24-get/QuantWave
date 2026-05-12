@@ -722,3 +722,257 @@ def paper_cmd(action: str = typer.Argument("status"), capital: int = typer.Optio
 def notify_cmd(test: bool = typer.Option(False, "--test"), setup: bool = typer.Option(False, "--setup")):
     """Configure notifications."""
     console.print("[cyan]Notification configuration – edit config/trading_profile.yml[/cyan]")
+
+
+# ---------------------------------------------------------------------------
+# Harmonic pattern scanning commands
+# ---------------------------------------------------------------------------
+
+def harmonic_scan_cmd(
+    symbol: str = typer.Option(None, "--symbol", help="Single symbol to scan"),
+    symbols: str = typer.Option(None, "--symbols", help="Comma-separated symbols to scan"),
+    index: str = typer.Option(None, "--index", help="Index group (NIFTY50, BANKNIFTY)"),
+    timeframe: str = typer.Option("D", "--timeframe", help="Timeframe (D, 5m, 15m, 1h)"),
+    limit: int = typer.Option(100, "--limit", help="Number of candles to analyze"),
+    min_confidence: float = typer.Option(0.7, "--min-confidence", help="Minimum confidence threshold"),
+    export: bool = typer.Option(False, "--export", help="Export results to file"),
+):
+    """Scan for harmonic patterns in single or multiple symbols."""
+    client, _ = get_client()
+    
+    from strategies.harmonic_scanner import HarmonicScanner
+    
+    scanner = HarmonicScanner(min_confidence=min_confidence)
+    
+    # Determine symbols to scan
+    scan_symbols = None
+    if symbol:
+        scan_symbols = [symbol]
+        console.print(f"[cyan]Scanning single symbol: {symbol}[/cyan]")
+    elif symbols:
+        scan_symbols = [s.strip() for s in symbols.split(",") if s.strip()]
+        console.print(f"[cyan]Scanning {len(scan_symbols)} symbols[/cyan]")
+    elif index:
+        key = index.upper()
+        if key not in _INDEX_GROUPS:
+            console.print(f"[red]Unknown index '{index}'. Available: {', '.join(_INDEX_GROUPS)}[/red]")
+            raise typer.Exit(1)
+        scan_symbols = _INDEX_GROUPS[key]
+        console.print(f"[cyan]Scanning {len(scan_symbols)} stocks from {index}[/cyan]")
+    else:
+        console.print("[red]--symbol, --symbols, or --index required[/red]")
+        raise typer.Exit(1)
+    
+    # Perform scan
+    console.print(f"[dim]Timeframe: {timeframe}, Candles: {limit}, Min Confidence: {min_confidence}[/dim]")
+    
+    if len(scan_symbols) == 1:
+        # Single symbol scan
+        result = scanner.scan_symbol(scan_symbols[0], timeframe, limit, client.get_client())
+        _display_harmonic_result(result)
+    else:
+        # Multiple symbol scan
+        results = scanner.scan_multiple(scan_symbols, timeframe, limit, client.get_client(), parallel=True)
+        _display_harmonic_results(results, min_confidence)
+    
+    # Export if requested
+    if export:
+        from utils import export_to_csv
+        export_data = []
+        if len(scan_symbols) == 1:
+            result = scanner.scan_symbol(scan_symbols[0], timeframe, limit, client.get_client())
+            if result['success'] and result['patterns']:
+                for pattern in result['patterns']:
+                    export_data.append({
+                        'symbol': result['symbol'],
+                        'pattern': pattern['name'],
+                        'direction': pattern['direction'],
+                        'confidence': pattern['confidence'],
+                        'entry_price': pattern['entry_price'],
+                        'stop_loss': pattern['stop_loss'],
+                        'take_profit': pattern['take_profit'],
+                        'risk_reward': pattern['risk_reward'],
+                        'timestamp': pattern['timestamp']
+                    })
+        else:
+            results = scanner.scan_multiple(scan_symbols, timeframe, limit, client.get_client(), parallel=True)
+            for result in results:
+                if result['success'] and result['patterns']:
+                    for pattern in result['patterns']:
+                        export_data.append({
+                            'symbol': result['symbol'],
+                            'pattern': pattern['name'],
+                            'direction': pattern['direction'],
+                            'confidence': pattern['confidence'],
+                            'entry_price': pattern['entry_price'],
+                            'stop_loss': pattern['stop_loss'],
+                            'take_profit': pattern['take_profit'],
+                            'risk_reward': pattern['risk_reward'],
+                            'timestamp': pattern['timestamp']
+                        })
+        
+        if export_data:
+            export_to_csv(export_data, filename=f"harmonic_scan_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+            console.print(f"[green]Exported {len(export_data)} patterns to CSV[/green]")
+        else:
+            console.print("[yellow]No patterns to export[/yellow]")
+
+
+def harmonic_live_cmd(
+    symbols: str = typer.Option(..., "--symbols", help="Comma-separated symbols to scan"),
+    timeframe: str = typer.Option("5m", "--timeframe", help="Timeframe for live scanning"),
+    interval: int = typer.Option(60, "--interval", help="Scan interval in seconds"),
+    min_confidence: float = typer.Option(0.7, "--min-confidence", help="Minimum confidence threshold"),
+):
+    """Live continuous scanning for harmonic patterns."""
+    console.print("[cyan]Starting live harmonic pattern scanner...[/cyan]")
+    console.print("[yellow]Press Ctrl+C to stop[/yellow]")
+    
+    client, _ = get_client()
+    from strategies.harmonic_scanner import HarmonicScanner
+    import time
+    
+    scanner = HarmonicScanner(min_confidence=min_confidence)
+    scan_symbols = [s.strip() for s in symbols.split(",") if s.strip()]
+    
+    console.print(f"[dim]Symbols: {', '.join(scan_symbols)}[/dim]")
+    console.print(f"[dim]Timeframe: {timeframe}, Interval: {interval}s[/dim]")
+    
+    try:
+        while True:
+            console.print(f"\n[bold cyan][{datetime.now().strftime('%H:%M:%S')}] Scanning...[/bold cyan]")
+            
+            results = scanner.scan_multiple(scan_symbols, timeframe, limit=100, client=client.get_client(), parallel=True)
+            
+            patterns_found = 0
+            for result in results:
+                if result['success'] and result['patterns']:
+                    patterns_found += len(result['patterns'])
+                    for pattern in result['patterns']:
+                        if pattern['confidence'] >= min_confidence:
+                            icon = "📈" if pattern['direction'] == 'bullish' else "📉"
+                            console.print(
+                                f"[green]{icon} {result['symbol']}[/green] - "
+                                f"{pattern['name']} ({pattern['confidence']:.0%}) - "
+                                f"Entry: ₹{pattern['entry_price']:.2f}"
+                            )
+            
+            if patterns_found == 0:
+                console.print("[dim]No patterns found[/dim]")
+            else:
+                console.print(f"[green]Found {patterns_found} patterns[/green]")
+            
+            time.sleep(interval)
+            
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Live scanner stopped[/yellow]")
+
+
+def harmonic_pattern_cmd(
+    symbol: str = typer.Option(..., "--symbol", help="Symbol to analyze"),
+    timeframe: str = typer.Option("D", "--timeframe", help="Timeframe for analysis"),
+):
+    """Detailed pattern analysis for a single symbol."""
+    client, _ = get_client()
+    
+    from strategies.harmonic_detector import HarmonicDetector
+    from api import get_historical_data
+    
+    console.print(f"[cyan]Analyzing {symbol} for harmonic patterns...[/cyan]")
+    
+    detector = HarmonicDetector()
+    df = get_historical_data(client.get_client(), symbol, timeframe, count=100)
+    
+    if df.empty:
+        console.print("[red]No data available[/red]")
+        return
+    
+    analysis = detector.get_analysis(df)
+    
+    if not analysis['has_pattern']:
+        console.print("[yellow]No harmonic patterns detected[/yellow]")
+        return
+    
+    console.print(f"\n[bold green]Pattern Detected: {analysis['latest_pattern']}[/bold green]")
+    console.print(f"Direction: {analysis['direction'].upper()}")
+    console.print(f"Confidence: {analysis['confidence']:.0%}")
+    console.print(f"Entry Price: ₹{analysis['entry_price']:.2f}")
+    console.print(f"Stop Loss: ₹{analysis['stop_loss']:.2f}")
+    console.print(f"Take Profit: ₹{analysis['take_profit']:.2f}")
+    console.print(f"Risk/Reward: {analysis['risk_reward']:.2f}")
+    
+    console.print(f"\n[dim]Total patterns found: {analysis['pattern_count']}[/dim]")
+
+
+def _display_harmonic_result(result: dict):
+    """Display single symbol harmonic scan result."""
+    if not result['success']:
+        console.print(f"[red]Error: {result.get('error', 'Unknown error')}[/red]")
+        return
+    
+    if not result['has_pattern']:
+        console.print(f"[yellow]No harmonic patterns found in {result['symbol']}[/yellow]")
+        console.print(f"[dim]Current price: ₹{result['current_price']:.2f}[/dim]")
+        return
+    
+    console.print(f"\n[bold green]Found {result['pattern_count']} pattern(s) in {result['symbol']}[/bold green]")
+    
+    for i, pattern in enumerate(result['patterns'], 1):
+        icon = "📈" if pattern['direction'] == 'bullish' else "📉"
+        console.print(f"\n[cyan]{i}. {icon} {pattern['name']} ({pattern['confidence']:.0%})[/cyan]")
+        console.print(f"   Direction: {pattern['direction'].upper()}")
+        console.print(f"   Entry: ₹{pattern['entry_price']:.2f}")
+        console.print(f"   Stop Loss: ₹{pattern['stop_loss']:.2f}")
+        console.print(f"   Take Profit: ₹{pattern['take_profit']:.2f}")
+        console.print(f"   Risk/Reward: {pattern['risk_reward']:.2f}")
+
+
+def _display_harmonic_results(results: list, min_confidence: float):
+    """Display multiple symbol harmonic scan results."""
+    patterns_found = []
+    
+    for result in results:
+        if result['success'] and result['patterns']:
+            for pattern in result['patterns']:
+                if pattern['confidence'] >= min_confidence:
+                    patterns_found.append({
+                        'symbol': result['symbol'],
+                        'pattern': pattern
+                    })
+    
+    if not patterns_found:
+        console.print(f"[yellow]No harmonic patterns found with confidence >= {min_confidence:.0%}[/yellow]")
+        return
+    
+    # Sort by confidence
+    patterns_found.sort(key=lambda x: x['pattern']['confidence'], reverse=True)
+    
+    console.print(f"\n[bold green]Found {len(patterns_found)} pattern(s)[/bold green]")
+    
+    t = Table(title="Harmonic Pattern Scan Results")
+    t.add_column("Rank")
+    t.add_column("Symbol", style="cyan")
+    t.add_column("Pattern", style="bright_blue")
+    t.add_column("Direction", style="green")
+    t.add_column("Confidence", style="bright_green")
+    t.add_column("Entry", style="yellow")
+    t.add_column("Stop Loss", style="red")
+    t.add_column("Take Profit", style="green")
+    t.add_column("R:R", style="magenta")
+    
+    for rank, item in enumerate(patterns_found, 1):
+        p = item['pattern']
+        icon = "📈" if p['direction'] == 'bullish' else "📉"
+        t.add_row(
+            str(rank),
+            item['symbol'],
+            f"{icon} {p['name']}",
+            p['direction'].upper(),
+            f"{p['confidence']:.0%}",
+            f"₹{p['entry_price']:.2f}",
+            f"₹{p['stop_loss']:.2f}",
+            f"₹{p['take_profit']:.2f}",
+            f"{p['risk_reward']:.2f}"
+        )
+    
+    console.print(t)

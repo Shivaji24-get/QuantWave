@@ -27,7 +27,7 @@ class HealthCheck:
     def run_all_checks(self) -> bool:
         """Run all health checks and return overall status."""
         print("=" * 60)
-        print("TradingBot Health Check")
+        print("QuantWave Health Check")
         print("=" * 60)
         
         checks = [

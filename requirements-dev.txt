@@ -1,5 +1,5 @@
 # =============================================================================
-# TradingBot – Development & optional dependencies
+# QuantWave – Development & optional dependencies
 # =============================================================================
 # Install: pip install -r requirements-dev.txt
 # These are NOT needed for production/paper trading.

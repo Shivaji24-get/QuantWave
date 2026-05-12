@@ -1,4 +1,4 @@
-# 🤖 TradingBot — AI-Powered Algorithmic Trading for Indian Markets
+# 🤖 QuantWave — AI-Powered Algorithmic Trading for Indian Markets
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -13,8 +13,8 @@
 
 ```bash
 # 1 — Clone
-git clone https://github.com/Shivaji24-get/TradingBot.git
-cd TradingBot
+git clone https://github.com/Shivaji24-get/QuantWave.git
+cd QuantWave
 
 # 2 — Virtual environment
 python -m venv venv
@@ -64,7 +64,7 @@ python -m cli.main start-bot --paper
 ## Architecture
 
 ```
-TradingBot/
+QuantWave/
 ├── api/              Fyers API wrappers (data, orders, funds)
 ├── auth/             OAuth2 token management (encrypted storage)
 ├── cli/              Typer-based CLI (20+ commands)

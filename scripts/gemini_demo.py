@@ -152,7 +152,7 @@ def demo_trade_analysis():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Gemini AI Demo for TradingBot")
+    parser = argparse.ArgumentParser(description="Gemini AI Demo for QuantWave")
     parser.add_argument("--api-key", help="Gemini API key (or set GEMINI_API_KEY env var)")
     parser.add_argument("--demo", choices=["explain", "validate", "size", "analyze", "all"],
                         default="all", help="Which demo to run")
@@ -165,7 +165,7 @@ def main():
         os.environ["GEMINI_API_KEY"] = args.api_key
     
     print("\n" + "=" * 60)
-    print("TradingBot Gemini AI Integration Demo")
+    print("QuantWave Gemini AI Integration Demo")
     print("=" * 60)
     
     # Check if Gemini is available

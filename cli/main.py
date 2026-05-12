@@ -1,5 +1,5 @@
 """
-TradingBot CLI entry point.
+QuantWave CLI entry point.
 
 Usage:
     python -m cli.main --help
@@ -37,10 +37,13 @@ from .commands import (
     positions_cmd,
     report_cmd,
     signals_cmd,
+    harmonic_scan_cmd,
+    harmonic_live_cmd,
+    harmonic_pattern_cmd,
 )
 
 app = typer.Typer(
-    name="trading-bot",
+    name="quantwave",
     help="AI-Powered Algorithmic Trading Bot for Indian Equity Markets",
     add_completion=False,
 )
@@ -85,6 +88,11 @@ app.command("signals")(signals_cmd)
 app.command("strategy")(strategy_cmd)
 app.command("paper")(paper_cmd)
 app.command("notify")(notify_cmd)
+
+# Harmonic pattern scanning
+app.command("harmonic-scan")(harmonic_scan_cmd)
+app.command("harmonic-live")(harmonic_live_cmd)
+app.command("harmonic-pattern")(harmonic_pattern_cmd)
 
 
 if __name__ == "__main__":

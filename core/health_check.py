@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-System Health Check – verifies all TradingBot components are ready.
+System Health Check – verifies all QuantWave components are ready.
 
 FIXES:
 - Now detects placeholder credentials (${...}) as failed check
@@ -42,7 +42,7 @@ class HealthCheck:
 
         if not json_output:
             print("=" * 60)
-            print("TradingBot Health Check")
+            print("QuantWave Health Check")
             print("=" * 60)
 
         for name, fn in checks:
@@ -197,7 +197,7 @@ class HealthCheck:
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="TradingBot system health check")
+    parser = argparse.ArgumentParser(description="QuantWave system health check")
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     args = parser.parse_args()
 
