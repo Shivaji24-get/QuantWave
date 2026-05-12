@@ -2,6 +2,7 @@
 Trading strategy modules for QuantWave.
 """
 
+from typing import Dict, List, Any
 from .base import Pattern, Signal, PatternDetector, SignalGenerator, Scanner
 from .harmonic_detector import HarmonicDetector
 from .harmonic_scanner import HarmonicScanner
@@ -36,6 +37,38 @@ class StockScanner(HarmonicScanner):
         # Map old parameters to new ones if needed
         # For now, just pass through to HarmonicScanner
         super().__init__(**kwargs)
+    
+    def scan_all(self, client, symbols: List[str], timeframe: str = "D", limit: int = 100) -> List[Dict[str, Any]]:
+        """
+        Backward-compatible method for scanning multiple symbols.
+        
+        Args:
+            client: Fyers API client instance
+            symbols: List of trading symbols
+            timeframe: Timeframe for analysis
+            limit: Number of candles to analyze
+            
+        Returns:
+            List of scan results
+        """
+        results = self.scan_multiple(symbols, timeframe=timeframe, limit=limit, client=client)
+        return results
+    
+    def scan_all_smc(self, client, symbols: List[str], ltf_timeframe: str = "5m", htf_timeframe: str = "D") -> List[Dict[str, Any]]:
+        """
+        Backward-compatible method for SMC scanning (not supported).
+        
+        Args:
+            client: Fyers API client instance
+            symbols: List of trading symbols
+            ltf_timeframe: Lower timeframe
+            htf_timeframe: Higher timeframe
+            
+        Returns:
+            Empty list (SMC not supported in current implementation)
+        """
+        # SMC scanning not supported in current HarmonicScanner
+        return []
 
 
 __all__ = [
