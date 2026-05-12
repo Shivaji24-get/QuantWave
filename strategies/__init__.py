@@ -9,8 +9,34 @@ from .mss_detector import MSSDetector
 from .validators import DataValidator, PatternValidator, DuplicateValidator
 from .risk_manager import RiskManager
 
-# Aliases for backward compatibility
-StockScanner = HarmonicScanner
+
+class StockScanner(HarmonicScanner):
+    """
+    Wrapper for HarmonicScanner with backward-compatible parameter names.
+    
+    Accepts old parameter names and maps them to HarmonicScanner parameters.
+    """
+    
+    def __init__(
+        self,
+        enable_patterns: bool = True,
+        enable_scoring: bool = True,
+        enable_smc: bool = False,
+        **kwargs
+    ):
+        """
+        Initialize StockScanner with backward-compatible parameters.
+        
+        Args:
+            enable_patterns: Enable pattern detection (ignored, always enabled)
+            enable_scoring: Enable signal scoring (ignored, always enabled)
+            enable_smc: Enable SMC analysis (not supported, ignored)
+            **kwargs: Additional arguments passed to HarmonicScanner
+        """
+        # Map old parameters to new ones if needed
+        # For now, just pass through to HarmonicScanner
+        super().__init__(**kwargs)
+
 
 __all__ = [
     'Pattern',
