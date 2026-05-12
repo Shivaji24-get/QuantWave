@@ -30,6 +30,9 @@ pyyaml>=6.0.0
 # --- HTTP (for notifications) ---
 requests>=2.31.0
 
+# --- Browser automation (for login flow) ---
+selenium>=4.15.0
+
 # --- Optional: structured logging ---
 # python-json-logger>=2.0.0   # Uncomment if structured_logging: true in profile
 
